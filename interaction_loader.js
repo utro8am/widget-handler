@@ -1,25 +1,25 @@
 /**
- * Асинхронный загрузчик виджета
- * Этот скрипт находит контейнер, показывает preloader и загружает контент с бэкенда.
+ * Asynchronous widget loader
+ * This script finds a container, shows a preloader, and loads content from the backend.
  */
 (function() {
-    // URL вашего PHP-обработчика.
+    // URL of your PHP handler.
     const backendUrl = 'https://zraz.com/widget-handler.php';
 
-    // Находим на странице контейнер для нашего виджета по data-атрибуту
+    // Find the container for our widget on the page using a data attribute
     const widgetContainer = document.querySelector('[data-interaction-container]');
 
-    // Если контейнер не найден, ничего не делаем
+    // If the container is not found, do nothing
     if (!widgetContainer) {
         console.warn('Widget container [data-interaction-container] not found on the page.');
         return;
     }
 
-    // Добавляем отступы к контейнеру виджета
+    // Add margins to the widget container
     widgetContainer.style.marginTop = '6px';
     widgetContainer.style.marginBottom = '2px';
 
-    // --- Создаем и показываем анимацию загрузки ---
+    // --- Create and display the loading animation ---
 
     const styles = `
         .widget-loader {
@@ -62,7 +62,7 @@
     widgetContainer.innerHTML = loaderHtml;
 
 
-    // --- Загружаем основной контент виджета с логикой повторных попыток ---
+    // --- Load the main widget content with retry logic ---
 
     const payload = {
         pageUrl: window.location.href,
@@ -73,7 +73,7 @@
 
     function fetchWidgetData() {
         if (isWidgetLoaded) {
-            return; // Не отправляем новый запрос, если виджет уже успешно загружен
+            return; // Do not send a new request if the widget has already been successfully loaded
         }
 
         fetch(backendUrl, {
@@ -96,13 +96,13 @@
                 throw new Error('Invalid JSON response from server: missing html_content.');
             }
 
-            // 1. Вставляем HTML-контент
+            // 1. Insert the HTML content
             widgetContainer.innerHTML = data.html_content;
             
-            // 2. Устанавливаем флаг, что HTML загружен, чтобы остановить повторные запросы
+            // 2. Set a flag that the HTML has been loaded to stop retry attempts
             isWidgetLoaded = true; 
 
-            // 3. Находим все теги <script> внутри вставленного HTML
+            // 3. Find all <script> tags inside the inserted HTML
             const scriptTags = Array.from(widgetContainer.querySelectorAll('script'));
             const promises = [];
 
@@ -114,7 +114,7 @@
                         newScript.onload = resolve;
                         newScript.onerror = () => {
                             console.warn(`Could not load external script: ${scriptTag.src}. Continuing execution.`);
-                            resolve(); // Важно: разрешаем Promise даже при ошибке, чтобы не блокировать основной JS
+                            resolve(); // Important: resolve the Promise even on error to avoid blocking the main JS execution
                         };
                         document.body.appendChild(newScript);
                     });
@@ -123,9 +123,9 @@
                 scriptTag.remove();
             });
 
-            // 4. Ждем, пока все внешние библиотеки загрузятся (или не загрузятся)
+            // 4. Wait for all external libraries to load (or fail to load)
             return Promise.all(promises).then(() => {
-                // 5. После этого выполняем основной JS-код виджета
+                // 5. After that, execute the main widget JS code
                 if (data.js_content) {
                     const mainScript = document.createElement('script');
                     mainScript.textContent = data.js_content;
@@ -136,12 +136,12 @@
         .catch(error => {
             console.error('Failed to load widget, retrying in 10 seconds:', error);
             if (!isWidgetLoaded) {
-                 setTimeout(fetchWidgetData, 10000); // Повторный вызов через 10 секунд только если загрузка не удалась
+                 setTimeout(fetchWidgetData, 10000); // Retry the call after 10 seconds only if the loading failed
             }
         });
     }
 
-    // Первый запуск загрузки данных
+    // Initial data fetch
     fetchWidgetData();
 
 })();
